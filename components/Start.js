@@ -1,23 +1,39 @@
-
-    import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, ImageBackground, StyleSheet } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, TextInput, TouchableOpacity, ImageBackground, StyleSheet, Alert } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import backgroundImage from '../images/Image.png';
+import { getAuth, signInAnonymously } from 'firebase/auth';
 
 const Start = ({ navigation }) => {
   const [name, setName] = useState('');
   const [backgroundColor, setBackgroundColor] = useState('#090C08');
- 
+
+  const auth = getAuth();
 
   const colors = {
     black: '#090C08',
-    purple: '#474056', 
+    purple: '#474056',
     grey: '#8A95A5',
     green: '#B9C6AE',
   };
 
-  const handlePress = () => {
-    navigation.navigate('Chat', { name, backgroundColor });
+  const handleSignInAnonymously = () => {
+    signInAnonymously(auth)
+      .then((result) => {
+        if (result.user) {
+          navigation.navigate('Chat', {
+            userId: result.user.uid,
+            name,
+            backgroundColor,
+          });
+        } else {
+          Alert.alert('Sign In Error', 'Unable to sign in anonymously.');
+        }
+      })
+      .catch((error) => {
+        console.error('Error signing in anonymously:', error);
+        Alert.alert('Sign In Error', 'Unable to sign in, try later again.');
+      });
   };
 
   return (
@@ -39,7 +55,7 @@ const Start = ({ navigation }) => {
             />
           ))}
         </View>
-        <TouchableOpacity style={styles.button} onPress={handlePress}>
+        <TouchableOpacity style={styles.button} onPress={handleSignInAnonymously}>
           <Text style={styles.buttonText}>Start Chatting</Text>
         </TouchableOpacity>
       </View>
@@ -81,7 +97,7 @@ const styles = StyleSheet.create({
   colorCircle: {
     width: 40,
     height: 40,
-    borderRadius: 20, // Half of the width/height to make it a circle
+    borderRadius: 20,
     marginHorizontal: 5,
   },
   button: {
@@ -98,4 +114,3 @@ const styles = StyleSheet.create({
 });
 
 export default Start;
-

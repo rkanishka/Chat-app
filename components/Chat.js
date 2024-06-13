@@ -1,62 +1,33 @@
-/*import React from 'react';
-// ...
-
-const Chat = () => {
-  // ...
-};
-
-export default Chat;*/
-/*import React from 'react';
-import { View, StyleSheet } from 'react-native';
-import { useState, useEffect } from "react";
-const Chat = ({ route, navigation }) => {
-  const { name, backgroundColor } = route.params;
-
-  React.useLayoutEffect(() => {
-    navigation.setOptions({ title: name });
-  }, [navigation, name]);
-
-  return (
-    <View style={[styles.container, { backgroundColor }]}>
-      {/* Add your chat screen components here }
-    </View>
-  );
-};
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-});export default Chat;*/
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, StyleSheet, KeyboardAvoidingView, Platform } from 'react-native';
-import { useState, useEffect } from "react";
-import { GiftedChat } from "react-native-gifted-chat";
+import { GiftedChat } from 'react-native-gifted-chat';
+import { collection, addDoc, onSnapshot, query, orderBy } from 'firebase/firestore';
 
-const Chat = ({ route, navigation }) => {
-  const { name, backgroundColor } = route.params;
+const Chat = ({ route, navigation, db }) => {
+  const { name, backgroundColor, userId } = route.params;
   const [messages, setMessages] = useState([]);
 
   useEffect(() => {
-    setMessages([
-      {
-        _id: 1,
-        text: `Welcome to the chat, ${name}!`,
-        createdAt: new Date(),
-        system: true,
-      },
-      {
-        _id: 2,
-        text: 'Hello there!',
-        createdAt: new Date(),
-        user: {
-          _id: 2,
-          name: 'React Native',
-          
-        },
-      },
-    ]);
-  }, [name]);
+    const messagesRef = collection(db, 'messages');
+    const q = query(messagesRef, orderBy('createdAt', 'desc'));
+
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const messagesData = snapshot.docs.map((doc) => ({
+        _id: doc.id,
+        text: doc.data().text,
+        createdAt: doc.data().createdAt.toDate(),
+        user: doc.data().user,
+      }));
+
+      setMessages(messagesData);
+    });
+
+    return () => unsubscribe();
+  }, [db]);
+
+  const onSend = (newMessages) => {
+    addDoc(collection(db, 'messages'), newMessages[0]);
+  };
 
   React.useLayoutEffect(() => {
     navigation.setOptions({ title: name });
@@ -71,9 +42,10 @@ const Chat = ({ route, navigation }) => {
       <View style={[styles.container, { backgroundColor }]}>
         <GiftedChat
           messages={messages}
-          onSend={(newMessages) => setMessages(GiftedChat.append(messages, newMessages))}
+          onSend={onSend}
           user={{
-            _id: 1,
+            _id: userId,
+            name: name,
           }}
         />
       </View>
