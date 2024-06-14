@@ -1,11 +1,12 @@
-
 import React, { useState, useEffect } from 'react';
-import { View, StyleSheet, KeyboardAvoidingView, Platform, Text } from 'react-native';
-import { GiftedChat, InputToolbar } from 'react-native-gifted-chat';
+import { View, StyleSheet, KeyboardAvoidingView, Platform, Text, Image } from 'react-native';
+import { GiftedChat, Bubble, InputToolbar } from 'react-native-gifted-chat';
 import { collection, addDoc, onSnapshot, query, orderBy } from 'firebase/firestore';
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import MapView from 'react-native-maps';
+import CustomActions from './CustomActions';
 
-const Chat = ({ route, navigation, db, isConnected }) => {
+const Chat = ({ route, navigation, db, isConnected, storage }) => {
   const { name, backgroundColor, userId } = route.params;
   const [messages, setMessages] = useState([]);
 
@@ -22,6 +23,8 @@ const Chat = ({ route, navigation, db, isConnected }) => {
               text: doc.data().text,
               createdAt: doc.data().createdAt.toDate(),
               user: doc.data().user,
+              image: doc.data().image || null,
+              location: doc.data().location || null, // Add the location property
             }));
 
             setMessages(messagesData);
@@ -69,6 +72,86 @@ const Chat = ({ route, navigation, db, isConnected }) => {
     );
   }
 
+  const renderCustomActions = (props) => {
+    return <CustomActions {...props} storage={storage} userID={userId} />;
+  };
+
+  const renderCustomView = (props) => {
+    const { currentMessage } = props;
+    if (currentMessage.location) {
+      return (
+        <MapView
+          style={{ width: 200, height: 200, borderRadius: 13, margin: 3 }}
+          region={{
+            latitude: currentMessage.location.latitude,
+            longitude: currentMessage.location.longitude,
+            latitudeDelta: 0.0922,
+            longitudeDelta: 0.0421,
+          }}
+        />
+      );
+    }
+    return null;
+  };
+
+  const renderMessageImage = (props) => {
+    const { currentMessage } = props;
+    if (currentMessage.image) {
+      return (
+        <View style={{ borderRadius: 15, padding: 5 }}>
+          <Image
+            source={{ uri: currentMessage.image }}
+            style={{ width: 200, height: 200, resizeMode: 'cover', borderRadius: 10 }}
+          />
+        </View>
+      );
+    }
+    return null;
+  };
+
+  const renderBubble = (props) => {
+    const { currentMessage } = props;
+    const { user } = currentMessage;
+    const bubbleColor = getUserBubbleColor(user.name);
+
+    if (currentMessage.image) {
+      return (
+        <Bubble
+          {...props}
+          wrapperStyle={{
+            left: { backgroundColor: 'transparent' },
+            right: { backgroundColor: 'transparent' },
+          }}
+        />
+      );
+    }
+
+    return (
+      <Bubble
+        {...props}
+        wrapperStyle={{
+          left: { backgroundColor: bubbleColor },
+          right: { backgroundColor: bubbleColor },
+        }}
+        timeTextStyle={{
+          right: { color: 'red' },
+        }}
+      />
+    );
+  };
+
+  // Helper function to get the bubble color based on the user's name
+  const getUserBubbleColor = (userName) => {
+    switch (userName) {
+      case 'John':
+        return 'blue';
+      case 'Jane':
+        return 'green';
+      default:
+        return 'gray';
+    }
+  };
+
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -78,12 +161,16 @@ const Chat = ({ route, navigation, db, isConnected }) => {
       <View style={[styles.container, { backgroundColor }]}>
         <GiftedChat
           messages={messages}
-          onSend={onSend}
+          renderBubble={renderBubble}
+          renderInputToolbar={renderInputToolbar}
+          onSend={(messages) => onSend(messages)}
+          renderActions={renderCustomActions}
+          renderCustomView={renderCustomView}
+          renderMessageImage={renderMessageImage}
           user={{
             _id: userId,
             name: name,
           }}
-          renderInputToolbar={renderInputToolbar}
         />
       </View>
     </KeyboardAvoidingView>
